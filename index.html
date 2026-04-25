@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Data Spaces Diagram</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #020617;
+        color: #fff;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .stage {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: 12px;
+      }
+
+      .frame {
+        display: flex;
+        aspect-ratio: 16 / 9;
+        width: min(calc(100vw - 24px), calc((100vh - 24px) * 16 / 9));
+        max-width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 32px;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(34, 211, 238, 0.18), transparent 26%),
+          radial-gradient(circle at 95% 30%, rgba(217, 70, 239, 0.16), transparent 24%),
+          linear-gradient(135deg, #07111f, #101827 52%, #121821);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+        padding: 16px;
+      }
+
+      .topbar {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+      }
+
+      .brand {
+        min-width: 0;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding: 4px 12px;
+        border: 1px solid rgba(103, 232, 249, 0.3);
+        border-radius: 999px;
+        background: rgba(103, 232, 249, 0.1);
+        color: #cffafe;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        overflow: hidden;
+        color: white;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0;
+        line-height: 1.05;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tagline {
+        max-width: 880px;
+        margin-top: 6px;
+        color: #cbd5e1;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .controls {
+        display: flex;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        border-radius: 999px;
+        padding: 9px 14px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        transition:
+          background 180ms ease,
+          color 180ms ease,
+          transform 180ms ease;
+      }
+
+      .pill:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .pill.is-active {
+        background: white;
+        color: #020617;
+      }
+
+      .pill.language {
+        border: 1px solid rgba(165, 243, 252, 0.4);
+        background: rgba(165, 243, 252, 0.1);
+        color: #ecfeff;
+      }
+
+      .content {
+        min-height: 0;
+        flex: 1;
+      }
+
+      .view {
+        display: grid;
+        min-height: 0;
+        height: 100%;
+        animation: fadeIn 260ms ease-out;
+        gap: 16px;
+      }
+
+      .journey {
+        grid-template-columns: minmax(0, 1.55fr) minmax(310px, 0.85fr);
+        align-items: stretch;
+      }
+
+      .diagram,
+      .side-panel,
+      .large-panel,
+      .role-card {
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 27px;
+      }
+
+      .diagram {
+        position: relative;
+        background:
+          radial-gradient(circle at 50% 30%, rgba(56, 189, 248, 0.22), transparent 32%),
+          radial-gradient(circle at 85% 75%, rgba(168, 85, 247, 0.22), transparent 30%),
+          linear-gradient(135deg, #020617, #0f172a 50%, #111827);
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42);
+      }
+
+      .diagram-badge {
+        position: absolute;
+        z-index: 30;
+        top: 16px;
+        left: 20px;
+        padding: 4px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #cffafe;
+        font-size: 11px;
+        font-weight: 600;
+        backdrop-filter: blur(16px);
+      }
+
+      .diagram svg.connections {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .halo {
+        position: absolute;
+        z-index: 10;
+        top: 50%;
+        left: 50%;
+        width: 176px;
+        height: 176px;
+        border: 1px solid rgba(103, 232, 249, 0.2);
+        border-radius: 50%;
+        background: rgba(103, 232, 249, 0.05);
+        filter: blur(3px);
+        animation: pulseHalo 4s ease-in-out infinite;
+      }
+
+      .node {
+        position: absolute;
+        z-index: 20;
+        display: block;
+        width: 170px;
+        min-height: 62px;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.56);
+        color: white;
+        cursor: pointer;
+        padding: 10px;
+        text-align: left;
+        backdrop-filter: blur(14px);
+        transition:
+          transform 180ms ease,
+          background 180ms ease,
+          border-color 180ms ease;
+      }
+
+      .node:hover {
+        border-color: rgba(255, 255, 255, 0.38);
+        background: rgba(255, 255, 255, 0.1);
+        transform: translate(-50%, -50%) scale(1.04);
+      }
+
+      .node.is-active {
+        border-color: rgba(255, 255, 255, 0.82);
+        background: rgba(255, 255, 255, 0.2);
+        transform: translate(-50%, -50%) scale(1.06);
+        box-shadow: 0 18px 50px rgba(34, 211, 238, 0.16);
+      }
+
+      .node-inner,
+      .card-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .icon-box {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #cffafe;
+      }
+
+      .is-active .icon-box {
+        background: white;
+        color: #020617;
+      }
+
+      .node-title,
+      .role-title {
+        display: block;
+        overflow-wrap: normal;
+        color: white;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.08;
+      }
+
+      .node-subtitle,
+      .role-subtitle {
+        display: block;
+        margin-top: 3px;
+        color: #cbd5e1;
+        font-size: 10.5px;
+        line-height: 1.15;
+      }
+
+      .side-panel {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 14px;
+        backdrop-filter: blur(16px);
+      }
+
+      .step-summary {
+        display: flex;
+        min-height: 166px;
+        flex: 0 0 166px;
+        flex-direction: column;
+        justify-content: flex-start;
+        overflow: hidden;
+      }
+
+      .step-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .label {
+        color: #a5f3fc;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .step-title {
+        margin-top: 5px;
+        color: white;
+        font-size: 18px;
+        font-weight: 850;
+        line-height: 1.15;
+      }
+
+      .play {
+        flex-shrink: 0;
+        background: white;
+        color: #020617;
+      }
+
+      .progress {
+        height: 6px;
+        margin: 10px 0;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #22d3ee, #3b82f6);
+      }
+
+      .progress.a1 {
+        background: linear-gradient(90deg, #a78bfa, #6366f1);
+      }
+
+      .progress.a2 {
+        background: linear-gradient(90deg, #fcd34d, #f97316);
+      }
+
+      .progress.a3 {
+        background: linear-gradient(90deg, #6ee7b7, #14b8a6);
+      }
+
+      .progress.a4 {
+        background: linear-gradient(90deg, #38bdf8, #22d3ee);
+      }
+
+      .progress.a5 {
+        background: linear-gradient(90deg, #fda4af, #ec4899);
+      }
+
+      .progress.a6 {
+        background: linear-gradient(90deg, #e879f9, #9333ea);
+      }
+
+      .actor {
+        color: #cffafe;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .detail {
+        margin-top: 7px;
+        color: #cbd5e1;
+        font-size: 12.5px;
+        line-height: 1.42;
+      }
+
+      .step-list {
+        display: grid;
+        min-height: 0;
+        flex: 1;
+        gap: 6px;
+        grid-template-rows: repeat(7, minmax(0, 1fr));
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      .step-card,
+      .role-option {
+        width: 100%;
+        min-height: 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        color: white;
+        cursor: pointer;
+        overflow: hidden;
+        padding: 7px;
+        text-align: left;
+        transition:
+          background 180ms ease,
+          border-color 180ms ease;
+      }
+
+      .step-card:hover,
+      .role-option:hover {
+        border-color: rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .step-card.is-active,
+      .role-option.is-active {
+        border-color: rgba(255, 255, 255, 0.62);
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .step-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #22d3ee, #3b82f6);
+      }
+
+      .step-card:nth-child(2) .step-icon {
+        background: linear-gradient(135deg, #a78bfa, #6366f1);
+      }
+
+      .step-card:nth-child(3) .step-icon {
+        background: linear-gradient(135deg, #fcd34d, #f97316);
+      }
+
+      .step-card:nth-child(4) .step-icon {
+        background: linear-gradient(135deg, #6ee7b7, #14b8a6);
+      }
+
+      .step-card:nth-child(5) .step-icon {
+        background: linear-gradient(135deg, #38bdf8, #22d3ee);
+      }
+
+      .step-card:nth-child(6) .step-icon {
+        background: linear-gradient(135deg, #fda4af, #ec4899);
+      }
+
+      .step-card:nth-child(7) .step-icon {
+        background: linear-gradient(135deg, #e879f9, #9333ea);
+      }
+
+      .step-card-title {
+        display: block;
+        overflow: hidden;
+        color: white;
+        font-size: 12.2px;
+        font-weight: 800;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .step-short {
+        display: -webkit-box;
+        margin-top: 2px;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+        color: #cbd5e1;
+        font-size: 10.5px;
+        line-height: 1.25;
+      }
+
+      .layers {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .large-panel,
+      .role-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        backdrop-filter: blur(16px);
+      }
+
+      .large-panel.primary,
+      .role-card.detail {
+        background:
+          radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.2), transparent 35%),
+          linear-gradient(135deg, #020617, #111827);
+      }
+
+      .panel-title {
+        margin-top: 8px;
+        color: white;
+        font-size: 26px;
+        font-weight: 850;
+        line-height: 1.08;
+      }
+
+      .panel-copy {
+        margin-top: 8px;
+        max-width: 620px;
+        color: #cbd5e1;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .layer-list,
+      .block-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .layer-card,
+      .block-card,
+      .note {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 14px;
+      }
+
+      .block-card {
+        background: rgba(15, 23, 42, 0.7);
+      }
+
+      .block-number {
+        position: absolute;
+        top: 6px;
+        right: 14px;
+        color: rgba(255, 255, 255, 0.04);
+        font-size: 48px;
+        font-weight: 950;
+        line-height: 1;
+      }
+
+      .card-title {
+        color: #cffafe;
+        font-size: 17px;
+        font-weight: 800;
+      }
+
+      .card-copy {
+        margin-top: 5px;
+        color: #cbd5e1;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .roles {
+        grid-template-columns: 1.25fr 0.75fr;
+      }
+
+      .role-grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr 1fr;
+        margin-top: 16px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+
+      .role-card {
+        overflow-y: auto;
+      }
+
+      .selected-icon {
+        display: grid;
+        width: 58px;
+        height: 58px;
+        place-items: center;
+        border-radius: 22px;
+        background: white;
+        color: #020617;
+      }
+
+      .selected-title {
+        margin-top: 16px;
+        color: white;
+        font-size: 28px;
+        font-weight: 850;
+        line-height: 1.08;
+      }
+
+      .selected-subtitle {
+        margin-top: 5px;
+        color: #cffafe;
+        font-size: 14px;
+      }
+
+      .note {
+        margin-top: 18px;
+      }
+
+      .tiny-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      @keyframes pulseHalo {
+        0%,
+        100% {
+          opacity: 0.45;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        50% {
+          opacity: 0.75;
+          transform: translate(-50%, -50%) scale(1.08);
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes dashMove {
+        to {
+          stroke-dashoffset: -24;
+        }
+      }
+
+      @media (max-aspect-ratio: 16 / 10) {
+        .frame {
+          width: calc(100vw - 24px);
+          max-height: none;
+          overflow: auto;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .topbar,
+        .journey,
+        .layers,
+        .roles {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          display: grid;
+        }
+
+        .frame {
+          aspect-ratio: auto;
+          height: auto;
+          min-height: calc(100vh - 24px);
+        }
+
+        .diagram {
+          height: 520px;
+        }
+
+        .role-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <section id="app" class="frame"></section>
+    </main>
+
+    <script type="module">
+      import { connections, copy, getNodes, iconPaths, assertDiagramData } from "./diagram-data.js";
+
+      assertDiagramData();
+
+      const state = {
+        language: new URLSearchParams(window.location.search).get("lang") === "bg" ? "bg" : "en",
+        view: "journey",
+        activeStep: 0,
+        selectedNode: "provider",
+        playing: false,
+        timer: null,
+      };
+
+      const app = document.querySelector("#app");
+
+      function icon(name, className = "") {
+        return `
+          <svg class="${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="${iconPaths[name] || iconPaths.database}"></path>
+          </svg>
+        `;
+      }
+
+      function setState(patch) {
+        Object.assign(state, patch);
+        render();
+      }
+
+      function setPlaying(playing) {
+        state.playing = playing;
+        if (state.timer) {
+          window.clearInterval(state.timer);
+          state.timer = null;
+        }
+        if (playing) {
+          state.timer = window.setInterval(() => {
+            state.activeStep = (state.activeStep + 1) % copy[state.language].steps.length;
+            render();
+          }, 3200);
+        }
+        render();
+      }
+
+      function renderTopbar(content) {
+        return `
+          <header class="topbar">
+            <div class="brand">
+              <div class="eyebrow">${icon("activity", "tiny-icon")} ${content.badge}</div>
+              <h1>${content.title}</h1>
+              <p class="tagline">${content.tagline}</p>
+            </div>
+            <nav class="controls" aria-label="Diagram controls">
+              ${Object.entries(content.views)
+                .map(
+                  ([id, label]) =>
+                    `<button class="pill ${state.view === id ? "is-active" : ""}" type="button" data-view="${id}">${label}</button>`
+                )
+                .join("")}
+              <button class="pill language" type="button" data-language-toggle aria-label="${content.languageToggleAria}">
+                ${icon("languages", "tiny-icon")} ${content.languageToggle}
+              </button>
+            </nav>
+          </header>
+        `;
+      }
+
+      function renderDiagram(step, nodes, content) {
+        const activeNodeKeys = new Set(step.focus);
+        const activeConnections = connections.filter(([from, to]) => activeNodeKeys.has(from) || activeNodeKeys.has(to));
+        const point = (key) => [nodes[key].x, nodes[key].y];
+
+        const lines = connections
+          .map(([from, to], index) => {
+            const [x1, y1] = point(from);
+            const [x2, y2] = point(to);
+            const active = activeConnections.some(([a, b]) => (a === from && b === to) || (a === to && b === from));
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            return `
+              <g>
+                <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}" stroke-width="${active ? 0.7 : 0.35}" stroke-dasharray="${active ? "2 1.4" : "0"}" filter="${active ? "url(#glow)" : "none"}" opacity="${active ? 0.95 : 0.45}" style="${active ? "animation: dashMove 1.8s linear infinite" : ""}"></line>
+                ${
+                  active
+                    ? `<circle r="0.9" fill="#fff" filter="url(#glow)" opacity="0.85">
+                        <animateMotion dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s" path="M${x1},${y1} L${midX},${midY} L${x2},${y2}"></animateMotion>
+                        <animate attributeName="opacity" values="0;1;0" dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s"></animate>
+                      </circle>`
+                    : ""
+                }
+              </g>
+            `;
+          })
+          .join("");
+
+        const nodeMarkup = Object.entries(nodes)
+          .map(([key, node]) => {
+            const active = activeNodeKeys.has(key);
+            return `
+              <button class="node ${active ? "is-active" : ""}" type="button" data-node="${key}" style="left:${node.x}%;top:${node.y}%">
+                <span class="node-inner">
+                  <span class="icon-box">${icon(node.icon, "tiny-icon")}</span>
+                  <span>
+                    <span class="node-title">${node.label}</span>
+                    <span class="node-subtitle">${node.subtitle}</span>
+                  </span>
+                </span>
+              </button>
+            `;
+          })
+          .join("");
+
+        return `
+          <section class="diagram">
+            <div class="diagram-badge">${content.diagramBadge}</div>
+            <svg class="connections" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="activeLine" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#22d3ee"></stop>
+                  <stop offset="50%" stop-color="#a78bfa"></stop>
+                  <stop offset="100%" stop-color="#f472b6"></stop>
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="0.9" result="coloredBlur"></feGaussianBlur>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"></feMergeNode>
+                    <feMergeNode in="SourceGraphic"></feMergeNode>
+                  </feMerge>
+                </filter>
+              </defs>
+              ${lines}
+            </svg>
+            <div class="halo"></div>
+            ${nodeMarkup}
+          </section>
+        `;
+      }
+
+      function renderStepCard(step, active) {
+        return `
+          <button class="step-card ${active ? "is-active" : ""}" type="button" data-step="${step.id}">
+            <span class="card-row">
+              <span class="step-icon">${icon(step.icon, "tiny-icon")}</span>
+              <span>
+                <span class="step-card-title">${step.title}</span>
+                <span class="step-short">${step.short}</span>
+              </span>
+            </span>
+          </button>
+        `;
+      }
+
+      function renderJourney(content, nodes) {
+        const step = content.steps[state.activeStep];
+        return `
+          <div class="view journey">
+            ${renderDiagram(step, nodes, content)}
+            <aside class="side-panel" data-height-peer="diagram-description">
+              <div class="step-summary">
+                <div class="step-head">
+                  <div>
+                    <p class="label">${content.stepEyebrow}</p>
+                    <h2 class="step-title">${step.title}</h2>
+                  </div>
+                  <button class="pill play" type="button" data-play>${icon(state.playing ? "pause" : "play", "tiny-icon")} ${state.playing ? content.pause : content.play}</button>
+                </div>
+                <div class="progress a${step.id}"></div>
+                <p class="actor">${step.actor}</p>
+                <p class="detail">${step.detail}</p>
+              </div>
+              <div class="step-list">
+                ${content.steps.map((item) => renderStepCard(item, item.id === state.activeStep)).join("")}
+              </div>
+            </aside>
+          </div>
+        `;
+      }
+
+      function renderLayers(content) {
+        return `
+          <div class="view layers">
+            <section class="large-panel primary">
+              <p class="label">${content.layersEyebrow}</p>
+              <h2 class="panel-title">${content.layersTitle}</h2>
+              <p class="panel-copy">${content.layersIntro}</p>
+              <div class="layer-list">
+                ${content.layers
+                  .map(
+                    (layer) => `
+                      <article class="layer-card">
+                        <div class="card-row">
+                          <span class="icon-box is-bright">${icon(layer.icon, "tiny-icon")}</span>
+                          <div>
+                            <h3 class="card-title">${layer.title}</h3>
+                            <p class="card-copy">${layer.text}</p>
+                          </div>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </section>
+            <section class="large-panel">
+              <div class="block-list">
+                ${content.buildingBlocks
+                  .map(
+                    ([title, text], index) => `
+                      <article class="block-card">
+                        <div class="block-number">0${index + 1}</div>
+                        <h3 class="card-title">${title}</h3>
+                        <p class="card-copy">${text}</p>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </section>
+          </div>
+        `;
+      }
+
+      function renderRoles(content, nodes) {
+        const selected = nodes[state.selectedNode] || nodes.provider;
+        return `
+          <div class="view roles">
+            <section class="large-panel">
+              <h2 class="panel-title">${content.rolesTitle}</h2>
+              <p class="panel-copy">${content.rolesIntro}</p>
+              <div class="role-grid">
+                ${Object.entries(nodes)
+                  .map(
+                    ([key, node]) => `
+                      <button class="role-option ${key === state.selectedNode ? "is-active" : ""}" type="button" data-node="${key}">
+                        <span class="card-row">
+                          <span class="icon-box">${icon(node.icon, "tiny-icon")}</span>
+                          <span>
+                            <span class="role-title">${node.label}</span>
+                            <span class="role-subtitle">${node.subtitle}</span>
+                          </span>
+                        </span>
+                      </button>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </section>
+            <section class="role-card detail">
+              <div class="selected-icon">${icon(selected.icon, "")}</div>
+              <h2 class="selected-title">${selected.label}</h2>
+              <p class="selected-subtitle">${selected.subtitle}</p>
+              <p class="detail">${content.roleDescriptions[state.selectedNode]}</p>
+              <div class="note">
+                <p class="label">${content.presenterNoteLabel}</p>
+                <p class="card-copy">${content.presenterNote}</p>
+              </div>
+            </section>
+          </div>
+        `;
+      }
+
+      function bindEvents() {
+        app.querySelectorAll("[data-view]").forEach((button) => {
+          button.addEventListener("click", () => setState({ view: button.dataset.view }));
+        });
+
+        const languageButton = app.querySelector("[data-language-toggle]");
+        if (languageButton) {
+          languageButton.addEventListener("click", () => {
+            state.language = state.language === "en" ? "bg" : "en";
+            document.documentElement.lang = state.language;
+            render();
+          });
+        }
+
+        const playButton = app.querySelector("[data-play]");
+        if (playButton) {
+          playButton.addEventListener("click", () => setPlaying(!state.playing));
+        }
+
+        app.querySelectorAll("[data-step]").forEach((button) => {
+          button.addEventListener("click", () => setState({ activeStep: Number(button.dataset.step) }));
+        });
+
+        app.querySelectorAll("[data-node]").forEach((button) => {
+          button.addEventListener("click", () => setState({ selectedNode: button.dataset.node, view: state.view }));
+        });
+      }
+
+      function render() {
+        const content = copy[state.language];
+        const nodes = getNodes(state.language);
+        document.documentElement.lang = state.language;
+
+        app.innerHTML = `
+          ${renderTopbar(content)}
+          <div class="content">
+            ${
+              state.view === "journey"
+                ? renderJourney(content, nodes)
+                : state.view === "layers"
+                  ? renderLayers(content)
+                  : renderRoles(content, nodes)
+            }
+          </div>
+        `;
+        bindEvents();
+      }
+
+      render();
+    </script>
+  </body>
+</html>
