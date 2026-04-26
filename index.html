@@ -159,7 +159,6 @@
         display: grid;
         min-height: 0;
         height: 100%;
-        animation: fadeIn 260ms ease-out;
         gap: 16px;
       }
 
@@ -723,7 +722,7 @@
           state.timer = window.setInterval(() => {
             state.activeStep = (state.activeStep + 1) % copy[state.language].steps.length;
             render();
-          }, 3200);
+          }, 5000);
         }
         render();
       }
