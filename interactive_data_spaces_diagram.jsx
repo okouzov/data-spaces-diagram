@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { assertDiagramData, connections, copy, getNodes, iconPaths } from "./diagram-data.js";
+import { assertDiagramData, connections, copy, edgeId, getNodes, getStageFlow, iconPaths } from "./diagram-data.js";
 
 if (typeof console !== "undefined") {
   assertDiagramData();
@@ -27,7 +27,7 @@ function Icon({ name, className = "h-5 w-5", strokeWidth = 2 }) {
 }
 
 function MotionFade({ children, className = "" }) {
-  return <div className={`animate-[fadeIn_260ms_ease-out] ${className}`}>{children}</div>;
+  return <div className={className}>{children}</div>;
 }
 
 function Node({ nodeKey, node, active, onClick }) {
@@ -62,12 +62,36 @@ function Node({ nodeKey, node, active, onClick }) {
 }
 
 function Diagram({ step, nodes, setSelectedNode, label }) {
+  const stageFlow = getStageFlow(step);
+  const activeEdgeKeys = new Set(stageFlow.activeConnections.map(([from, to]) => edgeId(from, to)));
+  const activeDirections = new Map(stageFlow.activeConnections.map(([from, to]) => [edgeId(from, to), [from, to]]));
+  const beanEdgeKeys = new Set(stageFlow.beanFlows.map(([from, to]) => edgeId(from, to)));
+  const beanDirections = new Map(stageFlow.beanFlows.map(([from, to]) => [edgeId(from, to), [from, to]]));
   const activeNodeKeys = new Set(step.focus);
-  const activeConnections = connections.filter(
-    ([from, to]) => activeNodeKeys.has(from) || activeNodeKeys.has(to)
-  );
-
+  stageFlow.activeConnections.forEach(([from, to]) => {
+    activeNodeKeys.add(from);
+    activeNodeKeys.add(to);
+  });
+  stageFlow.beanFlows.forEach(([from, to]) => {
+    activeNodeKeys.add(from);
+    activeNodeKeys.add(to);
+  });
   const getPoint = (key) => [nodes[key].x, nodes[key].y];
+  const getPath = (from, to) => {
+    const [x1, y1] = getPoint(from);
+    const [x2, y2] = getPoint(to);
+    if (edgeId(from, to) === edgeId("provider", "policy")) {
+      return from === "provider"
+        ? `M${x1},${y1} C34,35 66,32 ${x2},${y2}`
+        : `M${x1},${y1} C66,32 34,35 ${x2},${y2}`;
+    }
+    if (edgeId(from, to) === edgeId("consumer", "identity")) {
+      return from === "consumer"
+        ? `M${x1},${y1} C70,34 40,32 ${x2},${y2}`
+        : `M${x1},${y1} C40,32 70,34 ${x2},${y2}`;
+    }
+    return `M${x1},${y1} L${x2},${y2}`;
+  };
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden rounded-[1.7rem] border border-white/10 bg-[radial-gradient(circle_at_50%_30%,rgba(56,189,248,0.22),transparent_32%),radial-gradient(circle_at_85%_75%,rgba(168,85,247,0.22),transparent_30%),linear-gradient(135deg,#020617,#0f172a_50%,#111827)] p-4 shadow-2xl">
@@ -81,7 +105,7 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
         {label}
       </div>
 
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg className="pointer-events-none absolute inset-0 z-[12] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
           <linearGradient id="activeLine" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0%" stopColor="#22d3ee" />
@@ -97,34 +121,37 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
           </filter>
         </defs>
         {connections.map(([from, to], index) => {
-          const [x1, y1] = getPoint(from);
-          const [x2, y2] = getPoint(to);
-          const active = activeConnections.some(
-            ([a, b]) => (a === from && b === to) || (a === to && b === from)
-          );
-          const midX = (x1 + x2) / 2;
-          const midY = (y1 + y2) / 2;
+          const currentEdge = edgeId(from, to);
+          const active = activeEdgeKeys.has(currentEdge);
+          const showBean = beanEdgeKeys.has(currentEdge);
+          const activeDirection = activeDirections.get(currentEdge) || [from, to];
+          const path = active ? getPath(activeDirection[0], activeDirection[1]) : getPath(from, to);
+          const beanDirection = beanDirections.get(currentEdge) || [from, to];
+          const beanPath = getPath(beanDirection[0], beanDirection[1]);
+          const persistentBase = currentEdge === edgeId("governance", "provider");
           return (
             <g key={`${from}-${to}-${index}`}>
-              <line
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
+              {persistentBase && active ? (
+                <path d={path} fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth="0.35" opacity="0.55" />
+              ) : null}
+              <path
+                d={path}
+                fill="none"
                 stroke={active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}
                 strokeWidth={active ? 0.7 : 0.35}
                 strokeDasharray={active ? "2 1.4" : "0"}
+                strokeLinecap="round"
                 filter={active ? "url(#glow)" : "none"}
                 opacity={active ? 0.95 : 0.45}
                 style={active ? { animation: "dashMove 1.8s linear infinite" } : undefined}
               />
-              {active && (
+              {showBean && (
                 <circle r="0.9" fill="#ffffff" filter="url(#glow)" opacity="0.85">
                   <animateMotion
                     dur="2.2s"
                     repeatCount="indefinite"
                     begin={`${index * 0.08}s`}
-                    path={`M${x1},${y1} L${midX},${midY} L${x2},${y2}`}
+                    path={beanPath}
                   />
                   <animate
                     attributeName="opacity"
@@ -212,7 +239,7 @@ export default function InteractiveDataSpacesDiagram() {
     if (!playing) return undefined;
     const timer = window.setInterval(() => {
       setActiveStep((value) => (value + 1) % steps.length);
-    }, 3200);
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [playing, steps.length]);
 

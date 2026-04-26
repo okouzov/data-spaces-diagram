@@ -204,9 +204,11 @@
 
       .diagram svg.connections {
         position: absolute;
+        z-index: 12;
         inset: 0;
         width: 100%;
         height: 100%;
+        pointer-events: none;
       }
 
       .halo {
@@ -684,14 +686,17 @@
     </main>
 
     <script type="module">
-      import { connections, copy, getNodes, iconPaths, assertDiagramData } from "./diagram-data.js";
+      import { connections, copy, edgeId, getNodes, getStageFlow, iconPaths, assertDiagramData } from "./diagram-data.js?v=flow8";
 
       assertDiagramData();
 
+      const params = new URLSearchParams(window.location.search);
+      const requestedStage = Number(params.get("stage"));
+
       const state = {
-        language: new URLSearchParams(window.location.search).get("lang") === "bg" ? "bg" : "en",
+        language: params.get("lang") === "bg" ? "bg" : "en",
         view: "journey",
-        activeStep: 0,
+        activeStep: Number.isInteger(requestedStage) && requestedStage >= 1 && requestedStage <= 7 ? requestedStage - 1 : 0,
         selectedNode: "provider",
         playing: false,
         timer: null,
@@ -751,24 +756,55 @@
       }
 
       function renderDiagram(step, nodes, content) {
+        const stageFlow = getStageFlow(step);
+        const activeEdgeKeys = new Set(stageFlow.activeConnections.map(([from, to]) => edgeId(from, to)));
+        const activeDirections = new Map(stageFlow.activeConnections.map(([from, to]) => [edgeId(from, to), [from, to]]));
+        const beanEdgeKeys = new Set(stageFlow.beanFlows.map(([from, to]) => edgeId(from, to)));
+        const beanDirections = new Map(stageFlow.beanFlows.map(([from, to]) => [edgeId(from, to), [from, to]]));
         const activeNodeKeys = new Set(step.focus);
-        const activeConnections = connections.filter(([from, to]) => activeNodeKeys.has(from) || activeNodeKeys.has(to));
+        stageFlow.activeConnections.forEach(([from, to]) => {
+          activeNodeKeys.add(from);
+          activeNodeKeys.add(to);
+        });
+        stageFlow.beanFlows.forEach(([from, to]) => {
+          activeNodeKeys.add(from);
+          activeNodeKeys.add(to);
+        });
         const point = (key) => [nodes[key].x, nodes[key].y];
+        const edgePath = (from, to) => {
+          const [x1, y1] = point(from);
+          const [x2, y2] = point(to);
+          if (edgeId(from, to) === edgeId("provider", "policy")) {
+            return from === "provider"
+              ? `M${x1},${y1} C34,35 66,32 ${x2},${y2}`
+              : `M${x1},${y1} C66,32 34,35 ${x2},${y2}`;
+          }
+          if (edgeId(from, to) === edgeId("consumer", "identity")) {
+            return from === "consumer"
+              ? `M${x1},${y1} C70,34 40,32 ${x2},${y2}`
+              : `M${x1},${y1} C40,32 70,34 ${x2},${y2}`;
+          }
+          return `M${x1},${y1} L${x2},${y2}`;
+        };
 
         const lines = connections
           .map(([from, to], index) => {
-            const [x1, y1] = point(from);
-            const [x2, y2] = point(to);
-            const active = activeConnections.some(([a, b]) => (a === from && b === to) || (a === to && b === from));
-            const midX = (x1 + x2) / 2;
-            const midY = (y1 + y2) / 2;
+            const currentEdge = edgeId(from, to);
+            const active = activeEdgeKeys.has(currentEdge);
+            const showBean = beanEdgeKeys.has(currentEdge);
+            const activeDirection = activeDirections.get(currentEdge) || [from, to];
+            const path = active ? edgePath(activeDirection[0], activeDirection[1]) : edgePath(from, to);
+            const beanDirection = beanDirections.get(currentEdge) || [from, to];
+            const beanPath = edgePath(beanDirection[0], beanDirection[1]);
+            const persistentBase = currentEdge === edgeId("governance", "provider");
             return `
               <g>
-                <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}" stroke-width="${active ? 0.7 : 0.35}" stroke-dasharray="${active ? "2 1.4" : "0"}" filter="${active ? "url(#glow)" : "none"}" opacity="${active ? 0.95 : 0.45}" style="${active ? "animation: dashMove 1.8s linear infinite" : ""}"></line>
+                ${persistentBase && active ? `<path d="${path}" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="0.35" opacity="0.55"></path>` : ""}
+                <path d="${path}" fill="none" stroke="${active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}" stroke-width="${active ? 0.7 : 0.35}" stroke-dasharray="${active ? "2 1.4" : "0"}" stroke-linecap="round" filter="${active ? "url(#glow)" : "none"}" opacity="${active ? 0.95 : 0.45}" style="${active ? "animation: dashMove 1.8s linear infinite" : ""}"></path>
                 ${
-                  active
+                  showBean
                     ? `<circle r="0.9" fill="#fff" filter="url(#glow)" opacity="0.85">
-                        <animateMotion dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s" path="M${x1},${y1} L${midX},${midY} L${x2},${y2}"></animateMotion>
+                        <animateMotion dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s" path="${beanPath}"></animateMotion>
                         <animate attributeName="opacity" values="0;1;0" dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s"></animate>
                       </circle>`
                     : ""

@@ -20,12 +20,12 @@ export const nodeBlueprints = {
   provider: { icon: "database", x: 15, y: 52 },
   consumer: { icon: "users", x: 85, y: 52 },
   catalog: { icon: "search", x: 50, y: 22 },
-  identity: { icon: "key", x: 28, y: 20 },
-  policy: { icon: "handshake", x: 72, y: 20 },
-  exchange: { icon: "network", x: 50, y: 52 },
-  audit: { icon: "file", x: 50, y: 78 },
-  apps: { icon: "sparkles", x: 85, y: 78 },
-  governance: { icon: "shield", x: 15, y: 78 },
+  identity: { icon: "key", x: 10, y: 20 },
+  policy: { icon: "handshake", x: 90, y: 20 },
+  exchange: { icon: "network", x: 50, y: 45.5 },
+  audit: { icon: "file", x: 55, y: 78 },
+  apps: { icon: "sparkles", x: 80, y: 78 },
+  governance: { icon: "shield", x: 25, y: 78 },
 };
 
 export const connections = [
@@ -35,14 +35,96 @@ export const connections = [
   ["consumer", "identity", "credentials"],
   ["provider", "policy", "offer"],
   ["consumer", "policy", "agreement"],
+  ["policy", "exchange", "rules"],
   ["provider", "exchange", "data/API"],
   ["exchange", "consumer", "secure data flow"],
   ["policy", "audit", "rules"],
   ["exchange", "audit", "logs"],
+  ["consumer", "audit", "usage logs"],
   ["consumer", "apps", "insights"],
   ["governance", "provider", "rules"],
   ["governance", "consumer", "rules"],
 ];
+
+export const stageFlows = [
+  {
+    activeConnections: [
+      ["provider", "catalog"],
+      ["provider", "policy"],
+    ],
+    beanFlows: [
+      ["provider", "catalog"],
+      ["provider", "policy"],
+      ["governance", "provider"],
+    ],
+  },
+  {
+    activeConnections: [
+      ["consumer", "catalog"],
+      ["catalog", "provider"],
+    ],
+    beanFlows: [
+      ["consumer", "catalog"],
+      ["catalog", "provider"],
+    ],
+  },
+  {
+    activeConnections: [
+      ["provider", "identity"],
+      ["consumer", "identity"],
+    ],
+    beanFlows: [
+      ["provider", "identity"],
+      ["consumer", "identity"],
+      ["governance", "provider"],
+      ["governance", "consumer"],
+    ],
+  },
+  {
+    activeConnections: [
+      ["provider", "policy"],
+      ["consumer", "policy"],
+    ],
+    beanFlows: [
+      ["provider", "policy"],
+      ["consumer", "policy"],
+    ],
+  },
+  {
+    activeConnections: [
+      ["provider", "exchange"],
+      ["exchange", "consumer"],
+    ],
+    beanFlows: [
+      ["provider", "exchange"],
+      ["exchange", "consumer"],
+    ],
+  },
+  {
+    activeConnections: [
+      ["exchange", "audit"],
+      ["consumer", "audit"],
+    ],
+    beanFlows: [
+      ["policy", "exchange"],
+      ["policy", "consumer"],
+      ["exchange", "audit"],
+      ["consumer", "audit"],
+    ],
+  },
+  {
+    activeConnections: [["consumer", "apps"]],
+    beanFlows: [["consumer", "apps"]],
+  },
+];
+
+export function edgeId(from, to) {
+  return [from, to].sort().join("|");
+}
+
+export function getStageFlow(step) {
+  return stageFlows[step.id] || { activeConnections: [], beanFlows: [] };
+}
 
 export const copy = {
   en: {
@@ -142,13 +224,13 @@ export const copy = {
       {
         id: 6,
         title: "7. Create value",
-        actor: "Apps, AI, services, dashboards",
+        actor: "Apps, services, dashboards",
         short: "Participants combine trusted data into products, insights, and new services.",
         detail:
-          "The outcome is not just data transfer. It is a trusted ecosystem where organizations can build analytics, AI, digital twins, public services, and cross-sector innovation.",
+          "The outcome is not just data transfer. It is a trusted ecosystem where organizations can build analytics, digital twins, public services, and cross-sector innovation.",
         icon: "sparkles",
         accent: "from-fuchsia-400 to-purple-600",
-        focus: ["apps", "consumer", "provider"],
+        focus: ["apps", "consumer"],
       },
     ],
     nodes: {
@@ -159,7 +241,7 @@ export const copy = {
       policy: { label: "Policy and Contract", subtitle: "usage rules plus obligations" },
       exchange: { label: "Secure Exchange", subtitle: "connector to connector" },
       audit: { label: "Usage Control and Audit", subtitle: "logs, enforcement, proof" },
-      apps: { label: "Value Creation", subtitle: "AI, dashboards, services" },
+      apps: { label: "Value Creation", subtitle: "Apps, dashboards, services" },
       governance: { label: "Governance Framework", subtitle: "shared rules, standards, roles" },
     },
     roleDescriptions: {
@@ -178,7 +260,7 @@ export const copy = {
       audit:
         "Records activity, checks compliance, supports dispute resolution, and provides evidence that rules were followed.",
       apps:
-        "Transforms trusted data into services, dashboards, AI models, decision support, digital twins, and cross-sector innovation.",
+        "Transforms trusted data into services, dashboards, decision support, digital twins, and cross-sector innovation.",
       governance:
         "Defines ecosystem rules: participation, standards, roles, legal basis, operating procedures, security levels, and escalation paths.",
     },
@@ -308,13 +390,13 @@ export const copy = {
       {
         id: 6,
         title: "7. Създаване на стойност",
-        actor: "Приложения, AI, услуги, табла",
+        actor: "Приложения, услуги, табла",
         short: "Участниците комбинират доверени данни в продукти, прозрения и нови услуги.",
         detail:
-          "Резултатът не е просто прехвърляне на данни. Това е доверена екосистема, в която организациите изграждат анализи, AI, дигитални двойници, публични услуги и междусекторни иновации.",
+          "Резултатът не е просто прехвърляне на данни. Това е доверена екосистема, в която организациите изграждат анализи, дигитални двойници, публични услуги и междусекторни иновации.",
         icon: "sparkles",
         accent: "from-fuchsia-400 to-purple-600",
-        focus: ["apps", "consumer", "provider"],
+        focus: ["apps", "consumer"],
       },
     ],
     nodes: {
@@ -325,7 +407,7 @@ export const copy = {
       policy: { label: "Политики и договори", subtitle: "правила плюс задължения" },
       exchange: { label: "Сигурен обмен", subtitle: "конектор към конектор" },
       audit: { label: "Контрол и одит", subtitle: "логове, изпълнение, доказателства" },
-      apps: { label: "Създаване на стойност", subtitle: "AI, табла, услуги" },
+      apps: { label: "Създаване на стойност", subtitle: "Приложения, табла, услуги" },
       governance: { label: "Рамка за управление", subtitle: "общи правила, стандарти, роли" },
     },
     roleDescriptions: {
@@ -344,7 +426,7 @@ export const copy = {
       audit:
         "Записва активност, проверява съответствие, подпомага разрешаване на спорове и предоставя доказателства, че правилата са спазени.",
       apps:
-        "Превръща доверени данни в услуги, табла, AI модели, подкрепа за решения, дигитални двойници и междусекторни иновации.",
+        "Превръща доверени данни в услуги, табла, подкрепа за решения, дигитални двойници и междусекторни иновации.",
       governance:
         "Определя правилата на екосистемата: участие, стандарти, роли, правно основание, процедури, нива на сигурност и ескалация.",
     },
@@ -407,8 +489,20 @@ export function assertDiagramData() {
     console.assert(languageCopy.layers.length >= 4, `Expected at least four architecture layers for ${language}.`);
   }
 
+  const connectionKeys = new Set(connections.map(([from, to]) => edgeId(from, to)));
+  const flowEdges = stageFlows.flatMap((flow) => [...flow.activeConnections, ...flow.beanFlows]);
+
   console.assert(
     connections.every(([from, to]) => nodeKeys.has(from) && nodeKeys.has(to)),
     "Every connection endpoint must exist in nodes."
+  );
+  console.assert(stageFlows.length === 7, "Expected one stage flow for each journey step.");
+  console.assert(
+    flowEdges.every(([from, to]) => nodeKeys.has(from) && nodeKeys.has(to)),
+    "Every stage flow endpoint must exist in nodes."
+  );
+  console.assert(
+    flowEdges.every(([from, to]) => connectionKeys.has(edgeId(from, to))),
+    "Every stage flow edge must exist in connections."
   );
 }
