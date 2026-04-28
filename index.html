@@ -259,6 +259,20 @@
         box-shadow: 0 18px 50px rgba(34, 211, 238, 0.16);
       }
 
+      .node.is-exchange {
+        width: 205px;
+        border-color: rgba(190, 242, 100, 0.28);
+        background: rgba(20, 83, 45, 0.2);
+      }
+
+      .node.is-exchange.is-active {
+        border-color: rgba(217, 249, 157, 0.92);
+        background: rgba(187, 247, 208, 0.24);
+        box-shadow:
+          0 0 0 1px rgba(190, 242, 100, 0.18),
+          0 18px 54px rgba(132, 204, 22, 0.28);
+      }
+
       .node-inner,
       .card-row {
         display: flex;
@@ -282,6 +296,11 @@
         color: #020617;
       }
 
+      .node.is-exchange.is-active .icon-box {
+        background: #ecfccb;
+        color: #14532d;
+      }
+
       .node-title,
       .role-title {
         display: block;
@@ -290,6 +309,25 @@
         font-size: 13px;
         font-weight: 800;
         line-height: 1.08;
+      }
+
+      .node.is-exchange .node-title {
+        color: #d9f99d;
+        white-space: nowrap;
+      }
+
+      .node.is-exchange .node-subtitle {
+        white-space: nowrap;
+      }
+
+      .node-note {
+        display: block;
+        margin-top: 3px;
+        color: #cbd5e1;
+        font-size: 8.5px;
+        font-weight: 600;
+        line-height: 1.1;
+        white-space: nowrap;
       }
 
       .node-subtitle,
@@ -686,7 +724,7 @@
     </main>
 
     <script type="module">
-      import { connections, copy, edgeId, getNodes, getStageFlow, iconPaths, assertDiagramData } from "./diagram-data.js?v=flow10";
+      import { connections, copy, edgeId, getNodes, getStageFlow, iconPaths, assertDiagramData } from "./diagram-data.js?v=flow15";
 
       assertDiagramData();
 
@@ -761,6 +799,11 @@
         const activeDirections = new Map(stageFlow.activeConnections.map(([from, to]) => [edgeId(from, to), [from, to]]));
         const beanEdgeKeys = new Set(stageFlow.beanFlows.map(([from, to]) => edgeId(from, to)));
         const beanDirections = new Map(stageFlow.beanFlows.map(([from, to]) => [edgeId(from, to), [from, to]]));
+        const exchangeAccentEdges = new Set([
+          edgeId("provider", "exchange"),
+          edgeId("exchange", "consumer"),
+          edgeId("exchange", "audit"),
+        ]);
         const activeNodeKeys = new Set(step.focus);
         stageFlow.activeConnections.forEach(([from, to]) => {
           activeNodeKeys.add(from);
@@ -797,13 +840,15 @@
             const beanDirection = beanDirections.get(currentEdge) || [from, to];
             const beanPath = edgePath(beanDirection[0], beanDirection[1]);
             const persistentBase = currentEdge === edgeId("governance", "provider");
+            const exchangeAccent = active && exchangeAccentEdges.has(currentEdge);
+            const activeStroke = exchangeAccent ? "url(#exchangeLine)" : "url(#activeLine)";
             return `
               <g>
                 ${persistentBase && active ? `<path d="${path}" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="0.35" opacity="0.55"></path>` : ""}
-                <path d="${path}" fill="none" stroke="${active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}" stroke-width="${active ? 0.7 : 0.35}" stroke-dasharray="${active ? "2 1.4" : "0"}" stroke-linecap="round" filter="${active ? "url(#glow)" : "none"}" opacity="${active ? 0.95 : 0.45}" style="${active ? "animation: dashMove 1.8s linear infinite" : ""}"></path>
+                <path d="${path}" fill="none" stroke="${active ? activeStroke : "rgba(148,163,184,0.18)"}" stroke-width="${active ? 0.7 : 0.35}" stroke-dasharray="${active ? "2 1.4" : "0"}" stroke-linecap="round" filter="${active ? "url(#glow)" : "none"}" opacity="${active ? 0.95 : 0.45}" style="${active ? "animation: dashMove 1.8s linear infinite" : ""}"></path>
                 ${
                   showBean
-                    ? `<circle r="0.9" fill="#fff" filter="url(#glow)" opacity="0.85">
+                    ? `<circle r="0.9" fill="${exchangeAccentEdges.has(currentEdge) ? "#fef9c3" : "#fff"}" filter="url(#glow)" opacity="0.85">
                         <animateMotion dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s" path="${beanPath}"></animateMotion>
                         <animate attributeName="opacity" values="0;1;0" dur="2.2s" repeatCount="indefinite" begin="${index * 0.08}s"></animate>
                       </circle>`
@@ -818,12 +863,13 @@
           .map(([key, node]) => {
             const active = activeNodeKeys.has(key);
             return `
-              <button class="node ${active ? "is-active" : ""}" type="button" data-node="${key}" style="left:${node.x}%;top:${node.y}%">
+              <button class="node ${key === "exchange" ? "is-exchange" : ""} ${active ? "is-active" : ""}" type="button" data-node="${key}" style="left:${node.x}%;top:${node.y}%">
                 <span class="node-inner">
                   <span class="icon-box">${icon(node.icon, "tiny-icon")}</span>
                   <span>
                     <span class="node-title">${node.label}</span>
                     <span class="node-subtitle">${node.subtitle}</span>
+                    ${node.note ? `<span class="node-note">${node.note}</span>` : ""}
                   </span>
                 </span>
               </button>
@@ -840,6 +886,11 @@
                   <stop offset="0%" stop-color="#22d3ee"></stop>
                   <stop offset="50%" stop-color="#a78bfa"></stop>
                   <stop offset="100%" stop-color="#f472b6"></stop>
+                </linearGradient>
+                <linearGradient id="exchangeLine" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#22c55e"></stop>
+                  <stop offset="55%" stop-color="#a3e635"></stop>
+                  <stop offset="100%" stop-color="#fde047"></stop>
                 </linearGradient>
                 <filter id="glow">
                   <feGaussianBlur stdDeviation="0.9" result="coloredBlur"></feGaussianBlur>

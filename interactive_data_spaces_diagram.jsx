@@ -31,15 +31,21 @@ function MotionFade({ children, className = "" }) {
 }
 
 function Node({ nodeKey, node, active, onClick }) {
+  const exchange = nodeKey === "exchange";
   return (
     <button
       type="button"
       onClick={() => onClick(nodeKey)}
       className={classNames(
-        "absolute z-20 w-40 -translate-x-1/2 -translate-y-1/2 rounded-2xl border p-2.5 text-left backdrop-blur transition-all duration-300 hover:scale-[1.04] xl:w-44",
-        active
-          ? "scale-[1.06] border-white/80 bg-white/20 shadow-2xl shadow-cyan-500/20"
-          : "border-white/10 bg-slate-900/55 hover:border-white/40 hover:bg-white/10"
+        "absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-2xl border p-2.5 text-left backdrop-blur transition-all duration-300 hover:scale-[1.04]",
+        exchange ? "w-52 xl:w-56" : "w-40 xl:w-44",
+        exchange
+          ? active
+            ? "scale-[1.06] border-lime-200/90 bg-green-100/20 shadow-2xl shadow-lime-500/30"
+            : "border-lime-200/25 bg-green-950/20 hover:border-lime-200/50 hover:bg-green-900/25"
+          : active
+            ? "scale-[1.06] border-white/80 bg-white/20 shadow-2xl shadow-cyan-500/20"
+            : "border-white/10 bg-slate-900/55 hover:border-white/40 hover:bg-white/10"
       )}
       style={{ left: `${node.x}%`, top: `${node.y}%` }}
     >
@@ -47,14 +53,19 @@ function Node({ nodeKey, node, active, onClick }) {
         <div
           className={classNames(
             "grid h-8 w-8 shrink-0 place-items-center rounded-xl",
-            active ? "bg-white text-slate-950" : "bg-white/10 text-cyan-100"
+            exchange && active
+              ? "bg-lime-100 text-green-950"
+              : active
+                ? "bg-white text-slate-950"
+                : "bg-white/10 text-cyan-100"
           )}
         >
           <Icon name={node.icon} className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0">
-          <div className="text-xs font-semibold leading-tight text-white xl:text-sm">{node.label}</div>
-          <div className="mt-0.5 text-[10px] leading-tight text-slate-300 xl:text-[11px]">{node.subtitle}</div>
+          <div className={classNames("text-xs font-semibold leading-tight xl:text-sm", exchange ? "whitespace-nowrap text-lime-200" : "text-white")}>{node.label}</div>
+          <div className={classNames("mt-0.5 text-[10px] leading-tight text-slate-300 xl:text-[11px]", exchange && "whitespace-nowrap")}>{node.subtitle}</div>
+          {node.note ? <div className="mt-0.5 whitespace-nowrap text-[8.5px] font-semibold leading-tight text-slate-300">{node.note}</div> : null}
         </div>
       </div>
     </button>
@@ -67,6 +78,11 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
   const activeDirections = new Map(stageFlow.activeConnections.map(([from, to]) => [edgeId(from, to), [from, to]]));
   const beanEdgeKeys = new Set(stageFlow.beanFlows.map(([from, to]) => edgeId(from, to)));
   const beanDirections = new Map(stageFlow.beanFlows.map(([from, to]) => [edgeId(from, to), [from, to]]));
+  const exchangeAccentEdges = new Set([
+    edgeId("provider", "exchange"),
+    edgeId("exchange", "consumer"),
+    edgeId("exchange", "audit"),
+  ]);
   const activeNodeKeys = new Set(step.focus);
   stageFlow.activeConnections.forEach(([from, to]) => {
     activeNodeKeys.add(from);
@@ -112,6 +128,11 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
             <stop offset="50%" stopColor="#a78bfa" />
             <stop offset="100%" stopColor="#f472b6" />
           </linearGradient>
+          <linearGradient id="exchangeLine" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" />
+            <stop offset="55%" stopColor="#a3e635" />
+            <stop offset="100%" stopColor="#fde047" />
+          </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="0.9" result="coloredBlur" />
             <feMerge>
@@ -129,6 +150,7 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
           const beanDirection = beanDirections.get(currentEdge) || [from, to];
           const beanPath = getPath(beanDirection[0], beanDirection[1]);
           const persistentBase = currentEdge === edgeId("governance", "provider");
+          const exchangeAccent = active && exchangeAccentEdges.has(currentEdge);
           return (
             <g key={`${from}-${to}-${index}`}>
               {persistentBase && active ? (
@@ -137,7 +159,7 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
               <path
                 d={path}
                 fill="none"
-                stroke={active ? "url(#activeLine)" : "rgba(148,163,184,0.18)"}
+                stroke={active ? (exchangeAccent ? "url(#exchangeLine)" : "url(#activeLine)") : "rgba(148,163,184,0.18)"}
                 strokeWidth={active ? 0.7 : 0.35}
                 strokeDasharray={active ? "2 1.4" : "0"}
                 strokeLinecap="round"
@@ -146,7 +168,7 @@ function Diagram({ step, nodes, setSelectedNode, label }) {
                 style={active ? { animation: "dashMove 1.8s linear infinite" } : undefined}
               />
               {showBean && (
-                <circle r="0.9" fill="#ffffff" filter="url(#glow)" opacity="0.85">
+                <circle r="0.9" fill={exchangeAccentEdges.has(currentEdge) ? "#fef9c3" : "#ffffff"} filter="url(#glow)" opacity="0.85">
                   <animateMotion
                     dur="2.2s"
                     repeatCount="indefinite"
